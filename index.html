@@ -124,7 +124,7 @@ footer{width:100%;max-width:560px;padding:0 20px 34px;color:var(--muted);font-si
     <div class="swatches" id="swatches"></div>
 
     <h3>Playback</h3>
-    <label class="check"><input type="checkbox" id="shuffle"> Shuffle playlists</label>
+    <label class="check"><input type="checkbox" id="shuffle" checked> Shuffle playlists</label>
   </details>
 </main>
 <footer>Private by design: everything lives in this browser. The only network calls this page ever makes are to Spotify.</footer>
@@ -361,6 +361,8 @@ async function afterLogin(){
     $('logoutBtn').hidden=false;
     await loadPlaylists();
     renderSelLabels();
+    resolvePlaylistName('mainUri','mainName');
+    resolvePlaylistName('breakUri','breakName');
   }catch(e){needLogin();}
 }
 function needLogin(){
@@ -396,6 +398,22 @@ async function loadPlaylists(){
   libItems=j.items||[];
   fillPicker('mainList',libItems,'mainUri','mainName');
   fillPicker('breakList',libItems,'breakUri','breakName');
+}
+function refreshPickers(){
+  fillPicker('mainList',libItems,'mainUri','mainName');
+  fillPicker('breakList',libItems,'breakUri','breakName');
+  renderSelLabels();
+}
+async function resolvePlaylistName(uriKey,nameKey){
+  var uri=store.get(uriKey,'');
+  if(!uri)return;
+  var cur=store.get(nameKey,'');
+  if(cur&&cur!=='Custom playlist'&&cur!=='Pasted playlist')return;
+  try{
+    var id=uri.split(':')[2];
+    var r=await api('/playlists/'+id+'?fields=name');
+    if(r.ok){var j=await r.json();if(j.name){store.set(nameKey,j.name);refreshPickers();}}
+  }catch(e){}
 }
 function fillPicker(listId,items,uriKey,nameKey){
   var ul=$(listId);ul.innerHTML='';
@@ -672,7 +690,7 @@ async function init(){
   applyTheme(store.get('theme','amber'));
   renderRedirect();
   $('clientIdIn').value=clientId();
-  $('shuffle').checked=!!store.get('shuffle',false);
+  $('shuffle').checked=!!store.get('shuffle',true);
   $('shuffle').onchange=function(){store.set('shuffle',$('shuffle').checked);};
   if('speechSynthesis' in window){
     loadVoices();
