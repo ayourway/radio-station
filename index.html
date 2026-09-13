@@ -413,6 +413,7 @@ function fillPicker(listId,items,uriKey,nameKey){
 }
 async function applyPaste(inputId,uriKey,nameKey){
   setStatus('Checking the link…');
+  try{$('status').scrollIntoView({block:'nearest'});}catch(e){}
   var raw=$(inputId).value||'';
   var uri=parsePlaylistInput(raw);
   if(!uri){setStatus('That did not look like a Spotify playlist link.');return;}
@@ -685,6 +686,13 @@ async function init(){
   $('copyRedir').onclick=copyRedirect;
   $('mainApply').onclick=function(){applyPaste('mainPaste','mainUri','mainName');};
   $('breakApply').onclick=function(){applyPaste('breakPaste','breakUri','breakName');};
+  function pasteOnEnter(inputId,uriKey,nameKey){
+    $(inputId).addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();applyPaste(inputId,uriKey,nameKey);}
+    });
+  }
+  pasteOnEnter('mainPaste','mainUri','mainName');
+  pasteOnEnter('breakPaste','breakUri','breakName');
   await handleCallback();
   var tk=await getToken();
   if(tk){await afterLogin();}
