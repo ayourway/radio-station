@@ -142,7 +142,7 @@ function setStatus(m){$('status').textContent=m||'';}
 /* ============================== config ============================== */
 var DEFAULT_CLIENT_ID='53d26c9f9d93486c821b6d02bdd16d93';
 var SCOPES='streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
-function redirectUri(){return location.origin+location.pathname;}
+function redirectUri(){var p=location.pathname.replace(/index\.html?$/i,'');if(p.charAt(p.length-1)!=='/')p+='/';return location.origin+p;}
 function clientId(){return store.get('clientId',DEFAULT_CLIENT_ID)||DEFAULT_CLIENT_ID;}
 
 /* ============================== themes ============================== */
