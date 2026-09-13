@@ -412,10 +412,13 @@ function fillPicker(listId,items,uriKey,nameKey){
   });
 }
 async function applyPaste(inputId,uriKey,nameKey){
-  var uri=parsePlaylistInput($(inputId).value);
+  setStatus('Checking the link…');
+  var raw=$(inputId).value||'';
+  var uri=parsePlaylistInput(raw);
   if(!uri){setStatus('That did not look like a Spotify playlist link.');return;}
   store.set(uriKey,uri);
   $(inputId).value='';
+  setStatus('Link accepted, looking up the playlist name…');
   try{
     var id=uri.split(':')[2];
     var r=await api('/playlists/'+id+'?fields=name');
@@ -423,7 +426,7 @@ async function applyPaste(inputId,uriKey,nameKey){
     else{store.set(nameKey,'Custom playlist');}
   }catch(e){store.set(nameKey,'Custom playlist');}
   renderSelLabels();
-  setStatus('Playlist saved.');
+  setStatus('Playlist saved: '+store.get(nameKey,''));
 }
 function mainPlaylist(){return store.get('mainUri','');}
 function breakPlaylist(){return store.get('breakUri','')||store.get('mainUri','');}
