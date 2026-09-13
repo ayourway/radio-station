@@ -388,17 +388,24 @@ function parsePlaylistInput(s){
   if(/^[A-Za-z0-9]{22}$/.test(s))return 'spotify:playlist:'+s;
   return null;
 }
+var libItems=[];
 async function loadPlaylists(){
   var r=await api('/me/playlists?limit=50');
   if(!r.ok)throw new Error('playlists');
   var j=await r.json();
-  fillPicker('mainList',j.items,'mainUri','mainName');
-  fillPicker('breakList',j.items,'breakUri','breakName');
+  libItems=j.items||[];
+  fillPicker('mainList',libItems,'mainUri','mainName');
+  fillPicker('breakList',libItems,'breakUri','breakName');
 }
 function fillPicker(listId,items,uriKey,nameKey){
   var ul=$(listId);ul.innerHTML='';
   var cur=store.get(uriKey,'');
-  items.forEach(function(p){
+  var all=items.slice();
+  var inList=items.some(function(p){return p.uri===cur;});
+  if(cur&&!inList){
+    all.unshift({uri:cur,name:store.get(nameKey,'Pasted playlist')});
+  }
+  all.forEach(function(p){
     var li=document.createElement('li');
     var b=document.createElement('button');
     b.type='button';b.textContent=p.name;
@@ -426,6 +433,8 @@ async function applyPaste(inputId,uriKey,nameKey){
     if(r.ok){var j=await r.json();store.set(nameKey,j.name);}
     else{store.set(nameKey,'Custom playlist');}
   }catch(e){store.set(nameKey,'Custom playlist');}
+  var listId=inputId==='mainPaste'?'mainList':'breakList';
+  fillPicker(listId,libItems,uriKey,nameKey);
   renderSelLabels();
   setStatus('Playlist saved: '+store.get(nameKey,''));
 }
