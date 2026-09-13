@@ -490,7 +490,7 @@ function renderSelLabels(){
 }
 
 /* ============================== Web Playback SDK ============================== */
-var player=null,deviceId=null;
+var player=null,deviceId=null,playerGen=0;
 function loadSDK(){
   return new Promise(function(res,rej){
     if(window.Spotify&&window.Spotify.Player){res();return;}
@@ -515,12 +515,14 @@ async function ensurePlayer(){
     name:"Jun's Radio",
     getOAuthToken:function(cb){getToken().then(function(t){cb(t||'');});}
   });
-  player.addListener('ready',function(d){deviceId=d.device_id;});
-  player.addListener('not_ready',function(){deviceId=null;});
-  player.addListener('initialization_error',function(e){setStatus('Player error: '+((e&&e.message)||'initialization failed'));});
-  player.addListener('authentication_error',function(){needLogin();});
-  player.addListener('account_error',function(){setStatus('This needs Spotify Premium — the logged-in account does not have it.');});
-  player.addListener('player_state_changed',onState);
+  var myGen=++playerGen;
+  function live(fn){return function(){if(myGen!==playerGen)return;return fn.apply(null,arguments);};}
+  player.addListener('ready',live(function(d){deviceId=d.device_id;}));
+  player.addListener('not_ready',live(function(){deviceId=null;}));
+  player.addListener('initialization_error',live(function(e){setStatus('Player error: '+((e&&e.message)||'initialization failed'));}));
+  player.addListener('authentication_error',live(function(){needLogin();}));
+  player.addListener('account_error',live(function(){setStatus('This needs Spotify Premium — the logged-in account does not have it.');}));
+  player.addListener('player_state_changed',live(onState));
   var ok=false;
   try{ok=await player.connect();}catch(e){ok=false;}
   if(!ok)throw new Error('Could not connect to Spotify. Please reload and try again.');
@@ -680,7 +682,10 @@ async function tuneIn(){
 }
 async function signOff(silent){
   eng.gen++;
+  playerGen++;
   eng.state='IDLE';
+  eng.lastTrackId=null;
+  eng.lastTrack=null;
   eng.djSpeaking=false;
   silence();
   stopBlockTimer();
