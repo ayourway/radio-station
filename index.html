@@ -213,20 +213,40 @@ function loadVoices(){
   voice=vs[idx]||null;
   sel.onchange=function(){voice=vs[+sel.value]||null;store.set('voiceIdx',+sel.value);};
 }
+var speechGen=0;
+function silence(){
+  speechGen++;
+  try{
+    if('speechSynthesis' in window){
+      try{speechSynthesis.cancel();}catch(e){}
+      try{speechSynthesis.pause();}catch(e){}
+      try{speechSynthesis.cancel();}catch(e){}
+      try{speechSynthesis.resume();}catch(e){}
+    }
+  }catch(e){}
+}
 function speak(text){
   return new Promise(function(res){
     if(!('speechSynthesis' in window)){res();return;}
-    try{
-      if(speechSynthesis.speaking)speechSynthesis.cancel();
-      var u=new SpeechSynthesisUtterance(text);
-      if(voice)u.voice=voice;
-      u.rate=0.95;u.pitch=1;
-      var done=false;
-      function fin(){if(!done){done=true;res();}}
-      u.onend=fin;u.onerror=fin;
-      speechSynthesis.speak(u);
-      setTimeout(fin,Math.max(9000,text.length*220));
-    }catch(e){res();}
+    var g=speechGen;
+    var parts=(text.match(/[^.!?]+[.!?]+["']?/g)||[text]).map(function(s){return s.trim();}).filter(Boolean);
+    var i=0;
+    function next(){
+      if(g!==speechGen||i>=parts.length){res();return;}
+      var chunk=parts[i++];
+      try{
+        var u=new SpeechSynthesisUtterance(chunk);
+        if(voice)u.voice=voice;
+        u.rate=0.95;u.pitch=1;
+        var done=false;
+        function fin(){if(done)return;done=true;setTimeout(next,120);}
+        u.onend=fin;u.onerror=fin;
+        if(speechSynthesis.speaking){try{speechSynthesis.cancel();}catch(e){}}
+        speechSynthesis.speak(u);
+        setTimeout(function(){fin();},Math.max(6000,chunk.length*250));
+      }catch(e){next();}
+    }
+    next();
   });
 }
 
@@ -630,6 +650,7 @@ async function startBlock(which){
 }
 async function tuneIn(){
   if(tunedIn){await signOff();return;}
+  silence();
   var btn=$('tuneBtn');
   btn.disabled=true;
   setStatus('Warming up the transmitter…');
@@ -661,7 +682,7 @@ async function signOff(silent){
   eng.gen++;
   eng.state='IDLE';
   eng.djSpeaking=false;
-  try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
+  silence();
   stopBlockTimer();
   setBlock('OFF');
   try{if(player){await player.pause();await player.disconnect();}}catch(e){}
