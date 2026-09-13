@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="amber">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14100b">
+<title>Jun's Radio</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;font-size:17px;line-height:1.5}
+header{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:20px 20px 10px}
+.brand{font-weight:800;letter-spacing:.16em;font-size:21px}
+.brand small{display:block;font-size:11px;letter-spacing:.32em;color:var(--muted);font-weight:600;margin-top:2px}
+.lamp{font-size:12px;font-weight:800;letter-spacing:.14em;border:2px solid var(--line);color:var(--muted);border-radius:10px;padding:8px 12px;white-space:nowrap}
+body.onair .lamp{color:#fff;background:#c81e1e;border-color:#ff6b6b;box-shadow:0 0 14px rgba(200,30,30,.8);animation:pulse 2.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 5px rgba(200,30,30,.35)}}
+.dial{width:100%;max-width:560px;height:30px;margin:2px 0 14px;background:repeating-linear-gradient(90deg,var(--line) 0 2px,transparent 2px 22px);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative}
+.dial::after{content:"";position:absolute;left:50%;top:-5px;bottom:-5px;width:4px;margin-left:-2px;background:var(--accent);border-radius:2px}
+main{width:100%;max-width:560px;padding:0 16px 40px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+.blockline{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+#blockBadge{font-weight:800;letter-spacing:.08em;font-size:14px;background:var(--line);color:var(--text);border-radius:999px;padding:6px 14px;white-space:nowrap}
+#blockBadge.music{background:var(--accent);color:var(--accent-ink)}
+#blockBadge.brk{background:#2f7d4f;color:#fff}
+#blockBadge.dj{background:#c81e1e;color:#fff}
+#blockTime{font-variant-numeric:tabular-nums;color:var(--muted);font-size:15px;white-space:nowrap}
+.trackrow{display:flex;gap:14px;align-items:center;min-width:0}
+#art{width:84px;height:84px;border-radius:12px;background:var(--line);object-fit:cover;flex:none}
+.tmeta{min-width:0}
+#trk{font-size:20px;font-weight:700;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#artist{color:var(--muted);font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vu{display:flex;gap:5px;align-items:flex-end;height:46px;margin-top:14px}
+.vu span{flex:1;border-radius:3px;background:var(--line);height:14%}
+body.onair .vu span{background:var(--accent);animation:eq 1s ease-in-out infinite alternate}
+body.onair .vu span:nth-child(2n){animation-duration:.62s}
+body.onair .vu span:nth-child(3n){animation-duration:1.5s}
+body.onair .vu span:nth-child(4n){animation-duration:.85s}
+@keyframes eq{from{height:10%}to{height:100%}}
+@media (prefers-reduced-motion:reduce){body.onair .vu span,.dial::after,body.onair .lamp{animation:none}}
+.selinfo{margin-top:12px;font-size:14px;color:var(--muted)}
+.bigbtn{min-height:68px;font-size:22px;font-weight:800;letter-spacing:.1em;border:none;border-radius:18px;background:var(--accent);color:var(--accent-ink);cursor:pointer;width:100%}
+.bigbtn:active{transform:scale(.985)}
+.bigbtn:disabled{opacity:.55;cursor:default}
+#status{min-height:26px;text-align:center;color:var(--muted);font-size:15px;padding:0 8px}
+details.card summary{cursor:pointer;font-size:18px;font-weight:700;padding:4px 0;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::before{content:"+ ";color:var(--accent);font-weight:800}
+details.card[open] summary::before{content:"– "}
+details.card h3{margin:22px 0 6px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hint{font-size:14px;color:var(--muted);margin:6px 0}
+.btn{background:transparent;color:var(--text);border:2px solid var(--accent);border-radius:12px;padding:10px 16px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.row input{flex:1;margin-top:0}
+input[type=text],select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;margin-top:6px;font-family:inherit}
+.plist{list-style:none;margin:8px 0 0;padding:0;max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.plist button{width:100%;text-align:left;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:16px;cursor:pointer;font-family:inherit}
+.plist button.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
+.swatches{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.swatch{width:54px;height:54px;border-radius:50%;border:3px solid var(--line);cursor:pointer;padding:0}
+.swatch.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.check{display:flex;align-items:center;gap:10px;font-size:17px;cursor:pointer;margin-top:6px}
+.check input{width:22px;height:22px;accent-color:var(--accent)}
+footer{width:100%;max-width:560px;padding:0 20px 34px;color:var(--muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">JUN'S RADIO<small>OLD SCHOOL · NO ADS</small></div>
+  <div class="lamp" id="onairLamp">ON AIR</div>
+</header>
+<div class="dial" aria-hidden="true"></div>
+<main>
+  <section class="card" aria-label="Now playing">
+    <div class="blockline"><span id="blockBadge">STANDBY</span><span id="blockTime"></span></div>
+    <div class="trackrow">
+      <img id="art" alt="">
+      <div class="tmeta">
+        <div id="trk">—</div>
+        <div id="artist">Tap Tune In to start</div>
+      </div>
+    </div>
+    <div class="vu" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="selinfo" id="selInfo"></div>
+  </section>
+
+  <button id="tuneBtn" class="bigbtn" type="button">TUNE IN</button>
+  <div id="status" role="status"></div>
+
+  <details class="card" id="settings">
+    <summary>Settings</summary>
+
+    <h3>Spotify login</h3>
+    <p class="hint" id="loginStatus">Not logged in.</p>
+    <div class="row">
+      <button id="loginBtn" class="btn" type="button">Log in with Spotify</button>
+      <button id="logoutBtn" class="btn" type="button" hidden>Log out</button>
+    </div>
+
+    <h3>Client ID</h3>
+    <input type="text" id="clientIdIn" autocomplete="off" spellcheck="false">
+    <div class="row"><button id="saveClient" class="btn" type="button">Save Client ID</button></div>
+    <p class="hint">Baked-in default is already set. Changing it logs you out.</p>
+
+    <h3>Redirect URI</h3>
+    <p class="hint">Paste this exact address into your Spotify app's Redirect URIs, and always open the station at this same address:</p>
+    <div class="row"><input type="text" id="redirIn" readonly><button id="copyRedir" class="btn" type="button">Copy</button></div>
+
+    <h3>Music playlist · 25-min block</h3>
+    <ul class="plist" id="mainList"></ul>
+    <div class="row"><input type="text" id="mainPaste" placeholder="…or paste a Spotify playlist link"><button id="mainApply" class="btn" type="button">Use</button></div>
+
+    <h3>Break playlist · 5-min block</h3>
+    <ul class="plist" id="breakList"></ul>
+    <div class="row"><input type="text" id="breakPaste" placeholder="…or paste a Spotify playlist link"><button id="breakApply" class="btn" type="button">Use</button></div>
+
+    <h3>DJ voice</h3>
+    <select id="voiceSel" aria-label="DJ voice"></select>
+    <div class="row"><button id="voicePrev" class="btn" type="button">Preview voice</button></div>
+    <p class="hint">Voices come from your device — nothing is sent to the cloud.</p>
+
+    <h3>Theme</h3>
+    <div class="swatches" id="swatches"></div>
+
+    <h3>Playback</h3>
+    <label class="check"><input type="checkbox" id="shuffle"> Shuffle playlists</label>
+  </details>
+</main>
+<footer>Private by design: everything lives in this browser. The only network calls this page ever makes are to Spotify.</footer>
+<script>
+'use strict';
+/* ============================== helpers ============================== */
+function $(id){return document.getElementById(id);}
+var store={
+  get:function(k,d){try{var v=localStorage.getItem('jr:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set:function(k,v){try{localStorage.setItem('jr:'+k,JSON.stringify(v));}catch(e){}},
+  del:function(k){try{localStorage.removeItem('jr:'+k);}catch(e){}}
+};
+function setStatus(m){$('status').textContent=m||'';}
+
+/* ============================== config ============================== */
+var DEFAULT_CLIENT_ID='53d26c9f9d93486c821b6d02bdd16d93';
+var SCOPES='streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
+function redirectUri(){return location.origin+location.pathname;}
+function clientId(){return store.get('clientId',DEFAULT_CLIENT_ID)||DEFAULT_CLIENT_ID;}
+
+/* ============================== themes ============================== */
+var THEMES={
+  amber:{label:'Amber Radio',bg:'#14100b',panel:'#201812',text:'#f6ecd8',muted:'#c9b48f',accent:'#ffb340',accentInk:'#1a1206',line:'#3a2d1c'},
+  ocean:{label:'Midnight Ocean',bg:'#081322',panel:'#0f1f36',text:'#e9f5ff',muted:'#9fc3e0',accent:'#4fd2ff',accentInk:'#052433',line:'#1e3a52'},
+  cream:{label:'Cream & Espresso',bg:'#faf3e7',panel:'#ffffff',text:'#2b1d12',muted:'#7a6248',accent:'#8c1d2f',accentInk:'#ffffff',line:'#e2d2b8'},
+  forest:{label:'Forest',bg:'#0b1610',panel:'#132219',text:'#ebf6e3',muted:'#a9c79b',accent:'#9fe870',accentInk:'#0b1a07',line:'#274233'},
+  wine:{label:'Burgundy',bg:'#190d12',panel:'#26141f',text:'#f8e9ee',muted:'#d3a7b3',accent:'#ef5b85',accentInk:'#24060f',line:'#472233'},
+  mono:{label:'High Contrast Mono',bg:'#000000',panel:'#101010',text:'#ffffff',muted:'#d6d6d6',accent:'#ffd800',accentInk:'#000000',line:'#3a3a3a'}
+};
+function applyTheme(key){
+  var t=THEMES[key]||THEMES.amber;
+  var r=document.documentElement.style;
+  r.setProperty('--bg',t.bg);r.setProperty('--panel',t.panel);r.setProperty('--text',t.text);
+  r.setProperty('--muted',t.muted);r.setProperty('--accent',t.accent);
+  r.setProperty('--accent-ink',t.accentInk);r.setProperty('--line',t.line);
+  document.documentElement.setAttribute('data-theme',key);
+  store.set('theme',key);
+  var kids=$('swatches').children;
+  for(var i=0;i<kids.length;i++){kids[i].classList.toggle('sel',kids[i].getAttribute('data-k')===key);}
+}
+function buildSwatches(){
+  var wrap=$('swatches');wrap.innerHTML='';
+  Object.keys(THEMES).forEach(function(k){
+    var t=THEMES[k];
+    var b=document.createElement('button');
+    b.type='button';b.className='swatch';b.setAttribute('data-k',k);
+    b.title=t.label;b.setAttribute('aria-label',t.label);
+    b.style.background='linear-gradient(135deg,'+t.bg+' 50%,'+t.accent+' 50%)';
+    b.onclick=function(){applyTheme(k);};
+    wrap.appendChild(b);
+  });
+}
+
+/* ============================== DJ voice ============================== */
+var voice=null;
+function pickDefaultVoice(vs){
+  var en=vs.filter(function(v){return v.lang&&v.lang.toLowerCase().indexOf('en')===0;});
+  var pool=en.length?en:vs;
+  var hints=['google us english','google uk english female','samantha','zira','aria','jenny','emma','olivia','tessa','kate','susan','female','woman'];
+  for(var i=0;i<hints.length;i++){
+    for(var j=0;j<pool.length;j++){
+      if(pool[j].name.toLowerCase().indexOf(hints[i])>=0)return pool[j];
+    }
+  }
+  for(var k=0;k<pool.length;k++){if(pool[k].lang.toLowerCase()==='en-us')return pool[k];}
+  return pool[0]||null;
+}
+function loadVoices(){
+  if(!('speechSynthesis' in window))return;
+  var vs=speechSynthesis.getVoices();
+  if(!vs.length)return;
+  var sel=$('voiceSel');
+  sel.innerHTML='';
+  vs.forEach(function(v,i){
+    var o=document.createElement('option');
+    o.value=i;o.textContent=v.name+' ('+v.lang+')';
+    sel.appendChild(o);
+  });
+  var idx=store.get('voiceIdx',null);
+  if(idx==null||idx<0||idx>=vs.length||!vs[idx]){
+    var d=pickDefaultVoice(vs);
+    idx=Math.max(0,vs.indexOf(d));
+    store.set('voiceIdx',idx);
+  }
+  sel.value=idx;
+  voice=vs[idx]||null;
+  sel.onchange=function(){voice=vs[+sel.value]||null;store.set('voiceIdx',+sel.value);};
+}
+function speak(text){
+  return new Promise(function(res){
+    if(!('speechSynthesis' in window)){res();return;}
+    try{
+      if(speechSynthesis.speaking)speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text);
+      if(voice)u.voice=voice;
+      u.rate=0.95;u.pitch=1;
+      var done=false;
+      function fin(){if(!done){done=true;res();}}
+      u.onend=fin;u.onerror=fin;
+      speechSynthesis.speak(u);
+      setTimeout(fin,Math.max(9000,text.length*220));
+    }catch(e){res();}
+  });
+}
+
+/* ============================== quotes ============================== */
+var QUOTES=[
+  {t:"The best way out is always through.",b:"Robert Frost"},
+  {t:"What we think, we become.",b:"Buddha"},
+  {t:"Do what you can, with what you have, where you are.",b:"Theodore Roosevelt"},
+  {t:"It always seems impossible until it is done.",b:"Nelson Mandela"},
+  {t:"Keep your face always toward the sunshine, and shadows will fall behind you.",b:"Walt Whitman"},
+  {t:"The only way to do great work is to love what you do.",b:"Steve Jobs"},
+  {t:"In the middle of difficulty lies opportunity.",b:"Albert Einstein"},
+  {t:"Life is what happens when you're busy making other plans.",b:"John Lennon"},
+  {t:"You miss one hundred percent of the shots you don't take.",b:"Wayne Gretzky"},
+  {t:"Whether you think you can or you think you can't, you're right.",b:"Henry Ford"},
+  {t:"I have not failed. I've just found ten thousand ways that won't work.",b:"Thomas Edison"},
+  {t:"A day without laughter is a day wasted.",b:"Charlie Chaplin"},
+  {t:"Music is the shorthand of emotion.",b:"Leo Tolstoy"},
+  {t:"Where words fail, music speaks.",b:"Hans Christian Andersen"},
+  {t:"The future belongs to those who believe in the beauty of their dreams.",b:"Eleanor Roosevelt"},
+  {t:"Don't count the days, make the days count.",b:"Muhammad Ali"},
+  {t:"Everything you've ever wanted is on the other side of fear.",b:"George Addair"},
+  {t:"Be yourself; everyone else is already taken.",b:"Oscar Wilde"},
+  {t:"I can resist everything except temptation.",b:"Oscar Wilde"},
+  {t:"A little nonsense now and then is relished by the wisest men.",b:"Roald Dahl"},
+  {t:"The early bird gets the worm, but the second mouse gets the cheese.",b:"Steven Wright"},
+  {t:"To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment.",b:"Ralph Waldo Emerson"},
+  {t:"What lies behind us and what lies before us are tiny matters compared to what lies within us.",b:"Ralph Waldo Emerson"},
+  {t:"The best time to plant a tree was twenty years ago. The second best time is now.",b:"a Chinese proverb"},
+  {t:"Simplicity is the ultimate sophistication.",b:"Leonardo da Vinci"},
+  {t:"Well begun is half done.",b:"Aristotle"},
+  {t:"Fortune favors the bold.",b:"Virgil"},
+  {t:"This too shall pass.",b:"a Persian proverb"},
+  {t:"Do one thing every day that scares you.",b:"Eleanor Roosevelt"},
+  {t:"It does not matter how slowly you go as long as you do not stop.",b:"Confucius"},
+  {t:"Our greatest glory is not in never falling, but in rising every time we fall.",b:"Confucius"},
+  {t:"A journey of a thousand miles begins with a single step.",b:"Lao Tzu"}
+];
+function pickQuote(){return QUOTES[Math.floor(Math.random()*QUOTES.length)];}
+
+/* ============================== Spotify auth (PKCE) ============================== */
+function randStr(n){
+  var a=new Uint8Array(n);crypto.getRandomValues(a);
+  var ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  var s='';for(var i=0;i<n;i++)s+=ch[a[i]%ch.length];return s;
+}
+function sha256b64(s){
+  return crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)).then(function(d){
+    var b=String.fromCharCode.apply(null,new Uint8Array(d));
+    return btoa(b).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  });
+}
+async function login(){
+  setStatus('Opening Spotify login…');
+  var v=randStr(96);store.set('pkce_v',v);
+  var c=await sha256b64(v);
+  var u=new URL('https://accounts.spotify.com/authorize');
+  u.searchParams.set('client_id',clientId());
+  u.searchParams.set('response_type','code');
+  u.searchParams.set('redirect_uri',redirectUri());
+  u.searchParams.set('scope',SCOPES);
+  u.searchParams.set('code_challenge_method','S256');
+  u.searchParams.set('code_challenge',c);
+  location.href=u.toString();
+}
+function saveTok(t){store.set('tok',{a:t.access_token,r:t.refresh_token,e:Date.now()+t.expires_in*1000});}
+async function doRefresh(t){
+  try{
+    var body=new URLSearchParams({grant_type:'refresh_token',refresh_token:t.r,client_id:clientId()});
+    var r=await fetch('https://accounts.spotify.com/api/token',{
+      method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
+    if(!r.ok)return null;
+    var j=await r.json();
+    saveTok({access_token:j.access_token,refresh_token:j.refresh_token||t.r,expires_in:j.expires_in});
+    return store.get('tok',null);
+  }catch(e){return null;}
+}
+async function getToken(){
+  var t=store.get('tok',null);
+  if(!t||!t.a)return null;
+  if(Date.now()>t.e-60000){t=await doRefresh(t);if(!t)return null;}
+  return t.a;
+}
+async function api(path,opts){
+  opts=opts||{};
+  var tk=await getToken();
+  if(!tk){needLogin();throw new Error('not-logged-in');}
+  async function call(t){
+    var h={Authorization:'Bearer '+t};
+    if(opts.body)h['Content-Type']='application/json';
+    return fetch('https://api.spotify.com/v1'+path,{method:opts.method||'GET',headers:h,body:opts.body});
+  }
+  var r=await call(tk);
+  if(r.status===401){
+    var t2=await doRefresh(store.get('tok',null));
+    if(!t2){needLogin();throw new Error('not-logged-in');}
+    r=await call(t2.a);
+  }
+  return r;
+}
+async function handleCallback(){
+  var q=new URLSearchParams(location.search);
+  if(q.get('error')){
+    history.replaceState({},'',location.pathname);
+    setStatus('Spotify login was cancelled.');
+    return true;
+  }
+  var code=q.get('code');
+  if(!code)return false;
+  history.replaceState({},'',location.pathname);
+  var v=store.get('pkce_v',null);
+  if(!v){setStatus('Login session expired — please log in again.');return true;}
+  try{
+    var body=new URLSearchParams({grant_type:'authorization_code',code:code,
+      redirect_uri:redirectUri(),client_id:clientId(),code_verifier:v});
+    var r=await fetch('https://accounts.spotify.com/api/token',{
+      method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
+    if(!r.ok)throw new Error('exchange-failed');
+    saveTok(await r.json());
+    store.del('pkce_v');
+    setStatus('Logged in. Welcome to the station.');
+  }catch(e){setStatus('Login failed — please try again.');}
+  return true;
+}
+async function afterLogin(){
+  try{
+    var r=await api('/me');
+    if(!r.ok)throw new Error('me');
+    var me=await r.json();
+    $('loginStatus').textContent='Logged in as '+(me.display_name||me.id)+'.';
+    $('loginBtn').hidden=true;
+    $('logoutBtn').hidden=false;
+    await loadPlaylists();
+    renderSelLabels();
+  }catch(e){needLogin();}
+}
+function needLogin(){
+  $('loginStatus').textContent='Not logged in.';
+  $('loginBtn').hidden=false;
+  $('logoutBtn').hidden=true;
+  setStatus('Please log in with Spotify to tune in.');
+  $('settings').open=true;
+}
+function logout(){
+  store.del('tok');
+  signOff(true);
+  needLogin();
+  setStatus('Logged out.');
+}
+
+/* ============================== playlists ============================== */
+function parsePlaylistInput(s){
+  s=(s||'').trim();
+  if(!s)return null;
+  var qi=s.indexOf('?');if(qi>0)s=s.slice(0,qi);
+  if(s.indexOf('spotify:playlist:')===0)return s;
+  var m=s.match(/open\.spotify\.com\/playlist\/([A-Za-z0-9]+)/);
+  if(m)return 'spotify:playlist:'+m[1];
+  if(/^[A-Za-z0-9]{22}$/.test(s))return 'spotify:playlist:'+s;
+  return null;
+}
+async function loadPlaylists(){
+  var r=await api('/me/playlists?limit=50');
+  if(!r.ok)throw new Error('playlists');
+  var j=await r.json();
+  fillPicker('mainList',j.items,'mainUri','mainName');
+  fillPicker('breakList',j.items,'breakUri','breakName');
+}
+function fillPicker(listId,items,uriKey,nameKey){
+  var ul=$(listId);ul.innerHTML='';
+  var cur=store.get(uriKey,'');
+  items.forEach(function(p){
+    var li=document.createElement('li');
+    var b=document.createElement('button');
+    b.type='button';b.textContent=p.name;
+    if(p.uri===cur)b.classList.add('sel');
+    b.onclick=function(){
+      store.set(uriKey,p.uri);store.set(nameKey,p.name);
+      fillPicker(listId,items,uriKey,nameKey);
+      renderSelLabels();
+    };
+    li.appendChild(b);ul.appendChild(li);
+  });
+}
+async function applyPaste(inputId,uriKey,nameKey){
+  var uri=parsePlaylistInput($(inputId).value);
+  if(!uri){setStatus('That did not look like a Spotify playlist link.');return;}
+  store.set(uriKey,uri);
+  $(inputId).value='';
+  try{
+    var id=uri.split(':')[2];
+    var r=await api('/playlists/'+id+'?fields=name');
+    if(r.ok){var j=await r.json();store.set(nameKey,j.name);}
+    else{store.set(nameKey,'Custom playlist');}
+  }catch(e){store.set(nameKey,'Custom playlist');}
+  renderSelLabels();
+  setStatus('Playlist saved.');
+}
+function mainPlaylist(){return store.get('mainUri','');}
+function breakPlaylist(){return store.get('breakUri','')||store.get('mainUri','');}
+function renderSelLabels(){
+  var m=store.get('mainName',''),b=store.get('breakName','');
+  $('selInfo').textContent=(m?'Music: '+m:'No music playlist chosen')+' · '+
+    (b?'Break: '+b:(m?'Break: same as music':'No break playlist chosen'));
+}
+
+/* ============================== Web Playback SDK ============================== */
+var player=null,deviceId=null;
+function loadSDK(){
+  return new Promise(function(res,rej){
+    if(window.Spotify&&window.Spotify.Player){res();return;}
+    var done=false;
+    function ok(){if(!done){done=true;res();}}
+    function bad(){if(!done){done=true;rej(new Error('sdk'));}
+    }
+    window.onSpotifyWebPlaybackSDKReady=ok;
+    var s=document.createElement('script');
+    s.src='https://sdk.scdn.co/spotify-player.js';
+    s.async=true;
+    s.onerror=bad;
+    document.head.appendChild(s);
+    setTimeout(bad,20000);
+  });
+}
+async function ensurePlayer(){
+  if(player&&deviceId)return deviceId;
+  try{await loadSDK();}
+  catch(e){throw new Error('The Spotify player failed to load. Check your connection and reload the page.');}
+  player=new Spotify.Player({
+    name:"Jun's Radio",
+    getOAuthToken:function(cb){getToken().then(function(t){cb(t||'');});}
+  });
+  player.addListener('ready',function(d){deviceId=d.device_id;});
+  player.addListener('not_ready',function(){deviceId=null;});
+  player.addListener('initialization_error',function(e){setStatus('Player error: '+((e&&e.message)||'initialization failed'));});
+  player.addListener('authentication_error',function(){needLogin();});
+  player.addListener('account_error',function(){setStatus('This needs Spotify Premium — the logged-in account does not have it.');});
+  player.addListener('player_state_changed',onState);
+  var ok=false;
+  try{ok=await player.connect();}catch(e){ok=false;}
+  if(!ok)throw new Error('Could not connect to Spotify. Please reload and try again.');
+  var t0=Date.now();
+  while(!deviceId&&Date.now()-t0<12000){await new Promise(function(r){setTimeout(r,200);});}
+  if(!deviceId)throw new Error('Spotify did not register this device. Try again.');
+  await api('/me/player',{method:'PUT',body:JSON.stringify({device_ids:[deviceId],play:false})});
+  return deviceId;
+}
+
+/* ============================== station engine ============================== */
+var MIN25=25*60*1000,MIN5=5*60*1000;
+var eng={state:'IDLE',blockStart:0,lastTrackId:null,lastTrack:null,songCount:0,gen:0,djSpeaking:false,blockTimer:null};
+var tunedIn=false;
+function artistNames(t){return t.artists.map(function(a){return a.name;}).join(', ');}
+function fmtTime(d){
+  var h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM';
+  h=h%12||12;
+  return h+':'+('0'+m).slice(-2)+' '+ap;
+}
+function fmtDur(ms){var s=Math.floor(ms/1000);return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
+function setBlock(b){
+  var badge=$('blockBadge');
+  if(b==='MUSIC'){badge.textContent='\u266A MUSIC BLOCK';badge.className='music';}
+  else if(b==='BREAK'){badge.textContent='\u2615 BREAK';badge.className='brk';}
+  else if(b==='DJ'){badge.textContent='\uD83C\uDF99 DJ TALKING';badge.className='dj';}
+  else{badge.textContent='STANDBY';badge.className='';}
+}
+function startBlockTimer(){
+  stopBlockTimer();
+  eng.blockTimer=setInterval(function(){
+    if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+    var lim=eng.state==='MUSIC'?MIN25:MIN5;
+    $('blockTime').textContent=fmtDur(Date.now()-eng.blockStart)+' / '+fmtDur(lim)+'+';
+  },1000);
+}
+function stopBlockTimer(){
+  if(eng.blockTimer){clearInterval(eng.blockTimer);eng.blockTimer=null;}
+  $('blockTime').textContent='';
+}
+function renderNowPlaying(t){
+  $('trk').textContent=t.name||'—';
+  $('artist').textContent=artistNames(t)||'';
+  var imgs=t.album&&t.album.images;
+  if(imgs&&imgs.length){
+    var u=(imgs[1]||imgs[0]).url;
+    var img=$('art');
+    if(img.getAttribute('src')!==u)img.setAttribute('src',u);
+  }
+}
+function onState(s){
+  if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+  var t=s&&s.track_window&&s.track_window.current_track;
+  if(!t){if(!eng.djSpeaking)restartBlock();return;}
+  if(t.id!==eng.lastTrackId){
+    var prev=eng.lastTrack;
+    eng.lastTrackId=t.id;
+    eng.lastTrack=t;
+    renderNowPlaying(t);
+    if(prev)onTrackEnded(prev);
+  }
+}
+async function restartBlock(){
+  if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+  var uri=eng.state==='MUSIC'?mainPlaylist():breakPlaylist();
+  if(!uri)return;
+  try{await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});}catch(e){}
+}
+async function djSay(text,gen){
+  eng.djSpeaking=true;
+  setBlock('DJ');
+  try{await player.pause();}catch(e){}
+  await speak(text);
+  eng.djSpeaking=false;
+  if(gen!==eng.gen)return;
+  if(eng.state==='MUSIC'||eng.state==='BREAK'){
+    try{await player.resume();}catch(e){}
+    setBlock(eng.state);
+  }
+}
+async function onTrackEnded(prev){
+  var myGen=++eng.gen;
+  var elapsed=Date.now()-eng.blockStart;
+  var limit=eng.state==='MUSIC'?MIN25:MIN5;
+  if(elapsed>=limit){await doInterlude(prev,myGen);return;}
+  eng.songCount++;
+  var line='That was '+prev.name+' by '+artistNames(prev)+'.';
+  if(eng.songCount%3===0){
+    var q=pickQuote();
+    line+=' Here is a little something for you: '+q.t+' '+q.b+'.';
+  }
+  await djSay(line,myGen);
+}
+async function doInterlude(prev,myGen){
+  eng.djSpeaking=true;
+  setBlock('DJ');
+  try{await player.pause();}catch(e){}
+  var wasMusic=eng.state==='MUSIC';
+  var line='That was '+prev.name+' by '+artistNames(prev)+'. The time right now is '+fmtTime(new Date())+'. '+
+    (wasMusic?"Let's take a five-minute break.":"And that's the end of our break — back to the music.");
+  await speak(line);
+  if(myGen!==eng.gen){eng.djSpeaking=false;return;}
+  eng.djSpeaking=false;
+  await startBlock(wasMusic?'BREAK':'MUSIC');
+}
+async function startBlock(which){
+  var uri=which==='MUSIC'?mainPlaylist():breakPlaylist();
+  if(!uri){
+    setStatus('Choose a '+(which==='MUSIC'?'music':'break')+' playlist in Settings first.');
+    $('settings').open=true;
+    await signOff();
+    return;
+  }
+  eng.state=which;
+  eng.blockStart=Date.now();
+  eng.lastTrackId=null;
+  eng.lastTrack=null;
+  setBlock(which);
+  startBlockTimer();
+  setStatus('');
+  try{
+    await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});
+  }catch(e){
+    setStatus('Spotify refused to play. Check the playlist and try again.');
+    await signOff();
+  }
+}
+async function tuneIn(){
+  if(tunedIn){await signOff();return;}
+  var btn=$('tuneBtn');
+  btn.disabled=true;
+  setStatus('Warming up the transmitter…');
+  try{
+    var tk=await getToken();
+    if(!tk){needLogin();btn.disabled=false;return;}
+    if(!mainPlaylist()){
+      setStatus('Pick your music playlist in Settings first.');
+      $('settings').open=true;
+      btn.disabled=false;
+      return;
+    }
+    await ensurePlayer();
+    try{await api('/me/player/repeat?state=context&device_id='+deviceId,{method:'PUT'});}catch(e){}
+    if($('shuffle').checked){
+      try{await api('/me/player/shuffle?state=true&device_id='+deviceId,{method:'PUT'});}catch(e){}
+    }
+    await startBlock('MUSIC');
+    if(eng.state==='MUSIC'){
+      tunedIn=true;
+      document.body.classList.add('onair');
+      btn.textContent='SIGN OFF';
+      setStatus('You are on the air.');
+    }
+  }catch(e){setStatus(e.message||'Something went wrong tuning in.');}
+  btn.disabled=false;
+}
+async function signOff(silent){
+  eng.gen++;
+  eng.state='IDLE';
+  eng.djSpeaking=false;
+  try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
+  stopBlockTimer();
+  setBlock('OFF');
+  try{if(player){await player.pause();await player.disconnect();}}catch(e){}
+  player=null;deviceId=null;
+  tunedIn=false;
+  document.body.classList.remove('onair');
+  $('tuneBtn').textContent='TUNE IN';
+  $('trk').textContent='—';
+  $('artist').textContent='Signed off';
+  if(!silent)setStatus('Signed off. Thanks for listening.');
+}
+
+/* ============================== settings wiring ============================== */
+function renderRedirect(){$('redirIn').value=redirectUri();}
+function copyRedirect(){
+  var v=$('redirIn').value;
+  function done(){setStatus('Redirect URI copied. Paste it into your Spotify app settings.');}
+  function fallback(){
+    $('redirIn').select();
+    try{document.execCommand('copy');done();}
+    catch(e){setStatus('Copy it manually: '+v);}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(v).then(done,fallback);
+  }else{fallback();}
+}
+
+/* ============================== init ============================== */
+async function init(){
+  buildSwatches();
+  applyTheme(store.get('theme','amber'));
+  renderRedirect();
+  $('clientIdIn').value=clientId();
+  $('shuffle').checked=!!store.get('shuffle',false);
+  $('shuffle').onchange=function(){store.set('shuffle',$('shuffle').checked);};
+  if('speechSynthesis' in window){
+    loadVoices();
+    speechSynthesis.onvoiceschanged=loadVoices;
+  }else{
+    $('voiceSel').innerHTML='<option>No built-in voices on this device</option>';
+  }
+  $('voicePrev').onclick=function(){speak("Good evening! You're listening to Jun's Radio.");};
+  $('tuneBtn').onclick=tuneIn;
+  $('loginBtn').onclick=login;
+  $('logoutBtn').onclick=logout;
+  $('saveClient').onclick=function(){
+    var v=$('clientIdIn').value.trim();
+    if(!v){setStatus('Client ID cannot be empty.');return;}
+    store.set('clientId',v);
+    store.del('tok');
+    setStatus('Client ID saved. Please log in again.');
+    needLogin();
+  };
+  $('copyRedir').onclick=copyRedirect;
+  $('mainApply').onclick=function(){applyPaste('mainPaste','mainUri','mainName');};
+  $('breakApply').onclick=function(){applyPaste('breakPaste','breakUri','breakName');};
+  await handleCallback();
+  var tk=await getToken();
+  if(tk){await afterLogin();}
+  else{needLogin();}
+  renderSelLabels();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
