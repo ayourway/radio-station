@@ -404,16 +404,25 @@ function refreshPickers(){
   fillPicker('breakList',libItems,'breakUri','breakName');
   renderSelLabels();
 }
+async function fetchPlaylistName(uri){
+  var id=uri.split(':')[2];
+  try{
+    var r=await api('/playlists/'+id+'?fields=name');
+    if(r.ok){var j=await r.json();if(j.name)return j.name;}
+  }catch(e){}
+  try{
+    var r2=await fetch('https://open.spotify.com/oembed?url='+encodeURIComponent('https://open.spotify.com/playlist/'+id));
+    if(r2.ok){var j2=await r2.json();if(j2.title)return j2.title;}
+  }catch(e){}
+  return null;
+}
 async function resolvePlaylistName(uriKey,nameKey){
   var uri=store.get(uriKey,'');
   if(!uri)return;
   var cur=store.get(nameKey,'');
   if(cur&&cur!=='Custom playlist'&&cur!=='Pasted playlist')return;
-  try{
-    var id=uri.split(':')[2];
-    var r=await api('/playlists/'+id+'?fields=name');
-    if(r.ok){var j=await r.json();if(j.name){store.set(nameKey,j.name);refreshPickers();}}
-  }catch(e){}
+  var nm=await fetchPlaylistName(uri);
+  if(nm){store.set(nameKey,nm);refreshPickers();}
 }
 function fillPicker(listId,items,uriKey,nameKey){
   var ul=$(listId);ul.innerHTML='';
@@ -445,12 +454,8 @@ async function applyPaste(inputId,uriKey,nameKey){
   store.set(uriKey,uri);
   $(inputId).value='';
   setStatus('Link accepted, looking up the playlist name…');
-  try{
-    var id=uri.split(':')[2];
-    var r=await api('/playlists/'+id+'?fields=name');
-    if(r.ok){var j=await r.json();store.set(nameKey,j.name);}
-    else{store.set(nameKey,'Custom playlist');}
-  }catch(e){store.set(nameKey,'Custom playlist');}
+  var nm=await fetchPlaylistName(uri);
+  store.set(nameKey,nm||'Custom playlist');
   var listId=inputId==='mainPaste'?'mainList':'breakList';
   fillPicker(listId,libItems,uriKey,nameKey);
   renderSelLabels();
