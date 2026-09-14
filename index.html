@@ -628,6 +628,10 @@ async function doInterlude(prev,myGen){
   eng.djSpeaking=false;
   await startBlock(wasMusic?'BREAK':'MUSIC');
 }
+async function syncShuffle(){
+  if(!deviceId)return;
+  try{await api('/me/player/shuffle?state='+$('shuffle').checked+'&device_id='+deviceId,{method:'PUT'});}catch(e){}
+}
 async function startBlock(which){
   var uri=which==='MUSIC'?mainPlaylist():breakPlaylist();
   if(!uri){
@@ -645,6 +649,7 @@ async function startBlock(which){
   setStatus('');
   try{
     await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});
+    await syncShuffle();
   }catch(e){
     setStatus('Spotify refused to play. Check the playlist and try again.');
     await signOff();
@@ -667,9 +672,7 @@ async function tuneIn(){
     }
     await ensurePlayer();
     try{await api('/me/player/repeat?state=context&device_id='+deviceId,{method:'PUT'});}catch(e){}
-    if($('shuffle').checked){
-      try{await api('/me/player/shuffle?state=true&device_id='+deviceId,{method:'PUT'});}catch(e){}
-    }
+    await syncShuffle();
     await startBlock('MUSIC');
     if(eng.state==='MUSIC'){
       tunedIn=true;
@@ -722,7 +725,10 @@ async function init(){
   renderRedirect();
   $('clientIdIn').value=clientId();
   $('shuffle').checked=!!store.get('shuffle',true);
-  $('shuffle').onchange=function(){store.set('shuffle',$('shuffle').checked);};
+  $('shuffle').onchange=function(){
+    store.set('shuffle',$('shuffle').checked);
+    if(tunedIn)void syncShuffle();
+  };
   if('speechSynthesis' in window){
     loadVoices();
     speechSynthesis.onvoiceschanged=loadVoices;
