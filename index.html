@@ -238,12 +238,19 @@ function speak(text){
         var u=new SpeechSynthesisUtterance(chunk);
         if(voice)u.voice=voice;
         u.rate=0.95;u.pitch=1;
-        var done=false;
-        function fin(){if(done)return;done=true;setTimeout(next,120);}
-        u.onend=fin;u.onerror=fin;
-        if(speechSynthesis.speaking){try{speechSynthesis.cancel();}catch(e){}}
-        speechSynthesis.speak(u);
-        setTimeout(function(){fin();},Math.max(6000,chunk.length*250));
+        var done=false,started=false;
+      function fin(){if(done)return;done=true;setTimeout(next,120);}
+      u.onend=fin;u.onerror=fin;u.onstart=function(){started=true;};
+      /* Cancel followed by speak() in the same task silently drops the
+         utterance on Android Chrome, so clear first and speak on a fresh task. */
+      try{speechSynthesis.cancel();}catch(e){}
+      setTimeout(function(){
+        if(g!==speechGen){fin();return;}
+        try{speechSynthesis.resume();}catch(e){}
+        try{speechSynthesis.speak(u);}catch(e){fin();return;}
+        setTimeout(function(){if(!started)fin();},2500);
+      },150);
+      setTimeout(fin,Math.max(9000,chunk.length*250));
       }catch(e){next();}
     }
     next();
@@ -591,15 +598,49 @@ async function restartBlock(){
   if(!uri)return;
   try{await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});}catch(e){}
 }
+/* Keep the station on the air: retry a lost resume and recover a stalled player. */
+var watchTimer=null,djSayStart=0;
+async function resumePlayback(){
+  for(var k=0;k<3;k++){
+    try{await player.resume();return;}catch(e){}
+    await new Promise(function(r){setTimeout(r,700);});
+  }
+  try{await api('/me/player/play?device_id='+deviceId,{method:'PUT'});}catch(e){}
+}
+function startWatchdog(){
+  stopWatchdog();
+  watchTimer=setInterval(function(){
+    if(!tunedIn)return;
+    if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+    if(eng.djSpeaking){
+      if(djSayStart&&Date.now()-djSayStart>45000){
+        eng.djSpeaking=false;djSayStart=0;silence();
+        resumePlayback();
+      }
+      return;
+    }
+    var g=eng.gen;
+    api('/me/player').then(function(r){return r.status===204?null:r.json();}).then(function(st){
+      if(g!==eng.gen||!tunedIn||eng.djSpeaking)return;
+      if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+      if(!st)return;
+      var dev=st.device;
+      if(dev&&dev.id===deviceId&&st.is_playing===false)resumePlayback();
+    }).catch(function(){});
+  },15000);
+}
+function stopWatchdog(){if(watchTimer){clearInterval(watchTimer);watchTimer=null;}}
 async function djSay(text,gen){
   eng.djSpeaking=true;
+  djSayStart=Date.now();
   setBlock('DJ');
   try{await player.pause();}catch(e){}
   await speak(text);
   eng.djSpeaking=false;
+  djSayStart=0;
   if(gen!==eng.gen)return;
   if(eng.state==='MUSIC'||eng.state==='BREAK'){
-    try{await player.resume();}catch(e){}
+    await resumePlayback();
     setBlock(eng.state);
   }
 }
@@ -618,14 +659,16 @@ async function onTrackEnded(prev){
 }
 async function doInterlude(prev,myGen){
   eng.djSpeaking=true;
+  djSayStart=Date.now();
   setBlock('DJ');
   try{await player.pause();}catch(e){}
   var wasMusic=eng.state==='MUSIC';
   var line='That was '+prev.name+' by '+artistNames(prev)+'. The time right now is '+fmtTime(new Date())+'. '+
     (wasMusic?"Let's take a five-minute break.":"And that's the end of our break — back to the music.");
   await speak(line);
-  if(myGen!==eng.gen){eng.djSpeaking=false;return;}
+  if(myGen!==eng.gen){eng.djSpeaking=false;djSayStart=0;return;}
   eng.djSpeaking=false;
+  djSayStart=0;
   await startBlock(wasMusic?'BREAK':'MUSIC');
 }
 async function syncShuffle(){
@@ -679,6 +722,7 @@ async function tuneIn(){
       document.body.classList.add('onair');
       btn.textContent='SIGN OFF';
       setStatus('You are on the air.');
+      startWatchdog();
     }
   }catch(e){setStatus(e.message||'Something went wrong tuning in.');}
   btn.disabled=false;
@@ -690,6 +734,8 @@ async function signOff(silent){
   eng.lastTrackId=null;
   eng.lastTrack=null;
   eng.djSpeaking=false;
+  djSayStart=0;
+  stopWatchdog();
   silence();
   stopBlockTimer();
   setBlock('OFF');
