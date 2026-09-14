@@ -49,6 +49,9 @@ details.card summary::before{content:"+ ";color:var(--accent);font-weight:800}
 details.card[open] summary::before{content:"– "}
 details.card h3{margin:22px 0 6px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .hint{font-size:14px;color:var(--muted);margin:6px 0}
+#stationLog{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:180px;overflow:auto}
+#stationLog div{padding:3px 0;border-bottom:1px solid var(--line);color:var(--muted)}
+#stationLog div b{color:var(--text);font-weight:600}
 .btn{background:transparent;color:var(--text);border:2px solid var(--accent);border-radius:12px;padding:10px 16px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap}
 .btn:active{transform:scale(.97)}
 .row{display:flex;gap:8px;margin-top:8px;align-items:center}
@@ -125,6 +128,12 @@ footer{width:100%;max-width:560px;padding:0 20px 34px;color:var(--muted);font-si
 
     <h3>Playback</h3>
     <label class="check"><input type="checkbox" id="shuffle" checked> Shuffle playlists</label>
+  </details>
+
+  <details class="card" id="stationLogWrap">
+    <summary>Station log</summary>
+    <p class="hint">What the station engine is doing, newest first. If the music ever stalls, the last few lines here say why.</p>
+    <div id="stationLog"><div><b>--:--:--</b> Station log ready. Tune in to start.</div></div>
   </details>
 </main>
 <footer>Private by design: everything lives in this browser. The only network calls this page ever makes are to Spotify.</footer>
@@ -224,6 +233,21 @@ function silence(){
       try{speechSynthesis.resume();}catch(e){}
     }
   }catch(e){}
+}
+/* Timestamped engine log (newest first, last 60). All local, for diagnostics. */
+var logBuf=[];
+function log(msg){
+  var d=new Date(),p=function(n){return('0'+n).slice(-2);};
+  var ts=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  logBuf.unshift({t:ts,m:String(msg)});
+  if(logBuf.length>60)logBuf.length=60;
+  var el=$('stationLog');
+  if(el)el.innerHTML=logBuf.map(function(e){return '<div><b>'+e.t+'</b> '+e.m.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>';}).join('');
+}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+/* Never let a Spotify SDK call hang forever — resolve/reject or time out. */
+function withTimeout(p,ms,what){
+  return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('timed out: '+what));},ms);})]);
 }
 function speak(text){
   return new Promise(function(res){
@@ -588,7 +612,9 @@ function onState(s){
     var prev=eng.lastTrack;
     eng.lastTrackId=t.id;
     eng.lastTrack=t;
+    lastPos=-1;
     renderNowPlaying(t);
+    log('now playing: '+t.name+' — '+artistNames(t));
     if(prev)onTrackEnded(prev);
   }
 }
@@ -598,49 +624,92 @@ async function restartBlock(){
   if(!uri)return;
   try{await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});}catch(e){}
 }
-/* Keep the station on the air: retry a lost resume and recover a stalled player. */
-var watchTimer=null,djSayStart=0;
-async function resumePlayback(){
-  for(var k=0;k<3;k++){
-    try{await player.resume();return;}catch(e){}
-    await new Promise(function(r){setTimeout(r,700);});
-  }
-  try{await api('/me/player/play?device_id='+deviceId,{method:'PUT'});}catch(e){}
+/* Keep the station on the air: detect stalls and escalate recovery. */
+var watchTimer=null,djSayStart=0,lastPos=-1,lastPosAt=0,recovering=false;
+async function getPlayState(){
+  var r=await api('/me/player');
+  if(r.status===204)return null;
+  if(!r.ok)throw new Error('Spotify state '+r.status);
+  return await r.json();
+}
+async function recoverStall(reason){
+  if(recovering||!tunedIn||!player)return;
+  if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+  if(eng.djSpeaking)return;
+  recovering=true;
+  try{
+    log('stall ('+reason+') — resuming');
+    try{await withTimeout(player.resume(),8000,'resume');}catch(e){log('player resume failed: '+e.message);}
+    await sleep(4000);
+    var st=await getPlayState().catch(function(){return undefined;});
+    if(st&&st.device&&st.device.id===deviceId&&st.is_playing){log('recovered: playing again');return;}
+    log('still stalled — asking Spotify to resume');
+    try{await api('/me/player/play?device_id='+deviceId,{method:'PUT'});}catch(e){log('Spotify resume failed: '+e.message);}
+    await sleep(4000);
+    st=await getPlayState().catch(function(){return undefined;});
+    if(st&&st.device&&st.device.id===deviceId&&st.is_playing){log('recovered via Spotify');return;}
+    log('still stalled — rebuilding the player');
+    try{
+      try{if(player)player.disconnect();}catch(e){}
+      player=null;deviceId=null;lastPos=-1;
+      await ensurePlayer();
+      var bs=eng.blockStart;
+      await startBlock(eng.state);
+      eng.blockStart=bs;
+      log('player rebuilt, block restarted');
+    }catch(e){log('rebuild failed: '+e.message);setStatus('The station stalled and could not recover. Sign off and tune in again.');}
+  }finally{recovering=false;}
 }
 function startWatchdog(){
   stopWatchdog();
-  watchTimer=setInterval(function(){
+  lastPos=-1;
+  watchTimer=setInterval(async function(){
     if(!tunedIn)return;
     if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
     if(eng.djSpeaking){
+      lastPos=-1;
       if(djSayStart&&Date.now()-djSayStart>45000){
+        log('DJ segment stuck over 45s — clearing it');
         eng.djSpeaking=false;djSayStart=0;silence();
-        resumePlayback();
+        await recoverStall('stuck DJ segment');
       }
       return;
     }
     var g=eng.gen;
-    api('/me/player').then(function(r){return r.status===204?null:r.json();}).then(function(st){
-      if(g!==eng.gen||!tunedIn||eng.djSpeaking)return;
-      if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
-      if(!st)return;
-      var dev=st.device;
-      if(dev&&dev.id===deviceId&&st.is_playing===false)resumePlayback();
-    }).catch(function(){});
+    var st;
+    try{st=await getPlayState();}
+    catch(e){log('watchdog: '+e.message);return;}
+    if(g!==eng.gen||!tunedIn||eng.djSpeaking)return;
+    if(eng.state!=='MUSIC'&&eng.state!=='BREAK')return;
+    if(!st||!st.device||st.device.id!==deviceId){await recoverStall('station device gone');return;}
+    if(!st.is_playing){await recoverStall('paused unexpectedly');return;}
+    /* Playing but the position never advances = audio fetch stalled. */
+    var pos=st.progress_ms||0,now=Date.now();
+    if(lastPos>=0&&now-lastPosAt>=20000&&pos<=lastPos+1500){
+      lastPos=-1;
+      await recoverStall('audio frozen at '+fmtDur(pos));
+    }else if(pos>lastPos+1500){lastPos=pos;lastPosAt=now;}
   },15000);
 }
 function stopWatchdog(){if(watchTimer){clearInterval(watchTimer);watchTimer=null;}}
+async function resumeAfterDj(){
+  try{await withTimeout(player.resume(),8000,'resume');}
+  catch(e){log('resume after DJ failed: '+e.message);await recoverStall('resume after DJ failed');}
+}
 async function djSay(text,gen){
   eng.djSpeaking=true;
   djSayStart=Date.now();
+  lastPos=-1;
   setBlock('DJ');
-  try{await player.pause();}catch(e){}
+  log('DJ: announcing');
+  try{await withTimeout(player.pause(),8000,'pause');}catch(e){log('pause for DJ failed: '+e.message);}
   await speak(text);
   eng.djSpeaking=false;
   djSayStart=0;
+  log('DJ: done');
   if(gen!==eng.gen)return;
   if(eng.state==='MUSIC'||eng.state==='BREAK'){
-    await resumePlayback();
+    await resumeAfterDj();
     setBlock(eng.state);
   }
 }
@@ -648,6 +717,7 @@ async function onTrackEnded(prev){
   var myGen=++eng.gen;
   var elapsed=Date.now()-eng.blockStart;
   var limit=eng.state==='MUSIC'?MIN25:MIN5;
+  log('track ended: '+prev.name+' ('+fmtDur(elapsed)+' into block)');
   if(elapsed>=limit){await doInterlude(prev,myGen);return;}
   eng.songCount++;
   var line='That was '+prev.name+' by '+artistNames(prev)+'.';
@@ -660,8 +730,10 @@ async function onTrackEnded(prev){
 async function doInterlude(prev,myGen){
   eng.djSpeaking=true;
   djSayStart=Date.now();
+  lastPos=-1;
   setBlock('DJ');
-  try{await player.pause();}catch(e){}
+  log('DJ: break announcement');
+  try{await withTimeout(player.pause(),8000,'pause');}catch(e){log('pause for break failed: '+e.message);}
   var wasMusic=eng.state==='MUSIC';
   var line='That was '+prev.name+' by '+artistNames(prev)+'. The time right now is '+fmtTime(new Date())+'. '+
     (wasMusic?"Let's take a five-minute break.":"And that's the end of our break — back to the music.");
@@ -690,6 +762,7 @@ async function startBlock(which){
   setBlock(which);
   startBlockTimer();
   setStatus('');
+  log((which==='MUSIC'?'music':'break')+' block started');
   try{
     await api('/me/player/play?device_id='+deviceId,{method:'PUT',body:JSON.stringify({context_uri:uri})});
     await syncShuffle();
@@ -722,6 +795,7 @@ async function tuneIn(){
       document.body.classList.add('onair');
       btn.textContent='SIGN OFF';
       setStatus('You are on the air.');
+      log('tuned in — watching playback');
       startWatchdog();
     }
   }catch(e){setStatus(e.message||'Something went wrong tuning in.');}
@@ -739,7 +813,8 @@ async function signOff(silent){
   silence();
   stopBlockTimer();
   setBlock('OFF');
-  try{if(player){await player.pause();await player.disconnect();}}catch(e){}
+  log('signed off');
+  try{if(player){await withTimeout(player.pause(),5000,'pause');await withTimeout(player.disconnect(),5000,'disconnect');}}catch(e){}
   player=null;deviceId=null;
   tunedIn=false;
   document.body.classList.remove('onair');
